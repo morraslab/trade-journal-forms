@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Position backfill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#12212B;          /* deep petrol, everything structural */
+  --ink-soft:#4A5F6B;
+  --paper:#DDE5E8;        /* cool desk surface */
+  --slip:#FBFCFC;         /* the slip itself */
+  --rule:#C0CDD3;
+  --signal:#B9711B;       /* missing stop */
+  --signal-tint:#F6E7CF;
+  --long:#1F6F6B;
+  --short:#A03C2E;
+  --ok:#2E6B4F;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Source Sans 3',system-ui,sans-serif;
+  font-size:16px;line-height:1.5;
+  padding:0 0 4rem;
+}
+.wrap{max-width:44rem;margin:0 auto;padding:0 1rem}
+
+/* ---- masthead ---- */
+header{
+  background:var(--ink);color:var(--slip);
+  padding:1.5rem 0 1.25rem;margin-bottom:1.5rem;
+}
+header .wrap{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;justify-content:space-between}
+h1{
+  font-family:'Archivo',sans-serif;font-weight:700;
+  font-size:1.5rem;letter-spacing:-.02em;margin:0;
+}
+.sub{font-size:.85rem;color:#9FB4BE;margin:.15rem 0 0}
+.tally{font-family:'IBM Plex Mono',monospace;font-size:.85rem;color:#9FB4BE;text-align:right}
+.tally b{display:block;font-size:1.5rem;color:var(--slip);font-weight:600}
+.bar{height:3px;background:#2C3F4B;margin-top:.5rem;width:9rem;margin-left:auto}
+.bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .35s ease}
+
+/* ---- slip ---- */
+.slip{
+  background:var(--slip);border:1px solid var(--rule);
+  margin-bottom:1rem;
+}
+.slip.done{opacity:.55}
+.slip-head{
+  display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:baseline;
+  padding:.85rem 1rem;border-bottom:1px dashed var(--rule);
+}
+.tag{
+  font-family:'IBM Plex Mono',monospace;font-size:.7rem;font-weight:600;
+  letter-spacing:.06em;padding:.15rem .4rem;border:1px solid var(--rule);
+  color:var(--ink-soft);
+}
+.name{font-family:'Archivo',sans-serif;font-weight:600;font-size:1.05rem;flex:1 1 auto}
+.epic{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--ink-soft);display:block;font-weight:400}
+.dir{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.8rem}
+.dir.LONG{color:var(--long)}
+.dir.SHORT{color:var(--short)}
+
+.facts{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(7rem,1fr));
+  border-bottom:1px dashed var(--rule);
+}
+.fact{padding:.6rem 1rem;border-right:1px dashed var(--rule)}
+.fact:last-child{border-right:0}
+.fact dt{font-size:.65rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin:0}
+.fact dd{font-family:'IBM Plex Mono',monospace;font-size:.95rem;margin:.1rem 0 0;font-variant-numeric:tabular-nums}
+.age{color:var(--ink-soft);font-size:.75rem}
+
+.fields{padding:.9rem 1rem 1rem}
+label{display:block;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:.25rem}
+textarea,input{
+  width:100%;font-family:inherit;font-size:.95rem;color:var(--ink);
+  background:#fff;border:1px solid var(--rule);border-radius:0;
+  padding:.5rem .6rem;
+}
+textarea{min-height:4.5rem;resize:vertical}
+input{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+textarea:focus,input:focus{outline:2px solid var(--ink);outline-offset:1px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem}
+
+/* the signature: an unwritten stop is hatched amber until you fill it */
+input.stop{background:
+  repeating-linear-gradient(135deg,var(--signal-tint) 0 6px,#fff 6px 12px);
+  border-color:var(--signal);
+}
+input.stop.filled{background:#fff;border-color:var(--rule)}
+.stop-note{font-size:.72rem;color:var(--signal);margin:.3rem 0 0}
+.stop-note.hidden{display:none}
+.tranche-note{margin:0;padding:.5rem 1rem;font-size:.75rem;color:var(--ink-soft);
+  background:#F1F5F6;border-bottom:1px dashed var(--rule)}
+.kinds{border:0;padding:0;margin:0 0 .9rem;display:flex;flex-wrap:wrap;gap:.4rem}
+.kinds legend{font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-soft);padding:0;margin-bottom:.35rem}
+.chk{display:inline-flex;align-items:center;gap:.35rem;cursor:pointer;
+  border:1px solid var(--rule);padding:.3rem .55rem;margin:0;
+  font-size:.82rem;letter-spacing:0;text-transform:none;color:var(--ink-soft)}
+.chk input{width:auto;margin:0;accent-color:var(--ink)}
+.chk:hover{background:#EEF3F5}
+.chk:has(input:checked){border-color:var(--ink);color:var(--ink);background:#EEF3F5;font-weight:600}
+.chk:has(input:focus-visible){outline:2px solid var(--ink);outline-offset:1px}
+.src{margin-top:.75rem}
+input.source{font-family:'Source Sans 3',sans-serif;font-size:.9rem}
+
+.actions{display:flex;align-items:center;gap:.75rem;margin-top:.9rem}
+button{
+  font-family:'Archivo',sans-serif;font-weight:600;font-size:.9rem;
+  background:var(--ink);color:var(--slip);border:0;border-radius:0;
+  padding:.55rem 1.1rem;cursor:pointer;
+}
+button:hover{background:#1D3543}
+button:disabled{background:#8FA3AC;cursor:default}
+button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+.msg{font-size:.8rem}
+.msg.ok{color:var(--ok)}
+.msg.err{color:var(--short)}
+
+.state{padding:2.5rem 1rem;text-align:center;color:var(--ink-soft)}
+.state h2{font-family:'Archivo',sans-serif;color:var(--ink);margin:0 0 .4rem}
+.toggle{
+  background:none;color:var(--ink-soft);border:1px solid var(--rule);
+  font-size:.78rem;padding:.35rem .7rem;margin-bottom:1rem;
+}
+.toggle:hover{background:#EEF3F5;color:var(--ink)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div>
+      <h1>Position backfill</h1>
+      <p class="sub" id="sub">Loading&hellip;</p>
+    </div>
+    <div class="tally">
+      <b id="left">&mdash;</b>
+      still to write
+      <span class="bar"><i id="prog"></i></span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+  <div class="state"><p>Fetching your open positions&hellip;</p></div>
+</main>
+
+<script>
+// ---------------------------------------------------------------------------
+// CONFIG -- publishable key only. Never put the secret key in this file.
+// ---------------------------------------------------------------------------
+const SUPABASE_URL  = "https://rztwvqmdpjgyentvrsqo.supabase.co";
+const PUBLISHABLE_KEY = "sb_publishable_eAPTFw8RewJBLq781fbHsA_PjTp7HU3";
+
+const KINDS = [
+  {code:"FUNDAMENTAL", label:"Fundamental"},
+  {code:"TECHNICAL",   label:"Technical"},
+  {code:"DISCREPANCY", label:"Discrepancy"},
+  {code:"PAIR",        label:"Pair trade"},
+  {code:"OTHER",       label:"Other"}
+];
+
+const token = new URLSearchParams(location.search).get("t");
+const main  = document.getElementById("main");
+
+const money = n => n === null || n === undefined ? "\u2014"
+  : Number(n).toLocaleString(undefined,{maximumFractionDigits:4});
+
+const day = iso => new Date(iso).toISOString().slice(0,10);
+
+function age(iso){
+  const days = Math.floor((Date.now() - new Date(iso)) / 86400000);
+  if (days < 31)  return days + "d ago";
+  if (days < 365) return Math.floor(days/30) + "mo ago";
+  return (days/365).toFixed(1) + "y ago";
+}
+
+async function rpc(fn, args){
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method:"POST",
+    headers:{
+      "apikey": PUBLISHABLE_KEY,
+      "Authorization": "Bearer " + PUBLISHABLE_KEY,
+      "Content-Type":"application/json"
+    },
+    body: JSON.stringify(args)
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error((data && data.message) || "Request failed");
+  return data;
+}
+
+function slip(row){
+  const node = document.createElement("section");
+  node.className = "slip" + (row.done ? " done" : "");
+  const many = row.tranches > 1;
+  const span = many
+    ? `${day(row.first_opened)} \u2192 ${day(row.last_opened)}`
+    : day(row.first_opened);
+
+  node.innerHTML = `
+    <div class="slip-head">
+      <span class="tag">${row.broker}</span>
+      <span class="name">${row.description || row.symbol}
+        <span class="epic">${row.symbol}</span></span>
+      <span class="dir ${row.direction}">${row.direction}</span>
+    </div>
+    <dl class="facts">
+      <div class="fact"><dt>${many ? "Total size" : "Size"}</dt>
+        <dd>${money(row.total_qty)}</dd></div>
+      <div class="fact"><dt>${many ? "Avg entry" : "Entry"}</dt>
+        <dd>${money(row.weighted_entry)}</dd></div>
+      <div class="fact"><dt>${many ? "Tranches" : "Opened"}</dt>
+        <dd>${many ? row.tranches : ""}<span class="age">${many ? "" : " "}${span}</span></dd></div>
+    </dl>
+    ${many ? `<p class="tranche-note">Built in ${row.tranches} tranches \u2014 one entry covers them all.</p>` : ""}
+    <div class="fields">
+      <fieldset class="kinds">
+        <legend>Kind of trade</legend>
+        ${KINDS.map(k => `<label class="chk" for="k${row.key}${k.code}">
+            <input type="checkbox" id="k${row.key}${k.code}" value="${k.code}">
+            <span>${k.label}</span></label>`).join("")}
+      </fieldset>
+      <label for="i${row.key}">Why did you take this?</label>
+      <textarea id="i${row.key}" placeholder="The thinking at the time \u2014 and what you'd need to see to be wrong."></textarea>
+      <div class="pair">
+        <div>
+          <label for="s${row.key}">Stop</label>
+          <input class="stop" id="s${row.key}" inputmode="decimal" placeholder="none set">
+        </div>
+        <div>
+          <label for="t${row.key}">Target</label>
+          <input id="t${row.key}" inputmode="decimal" placeholder="none set">
+        </div>
+      </div>
+      <p class="stop-note" id="n${row.key}">No stop on record for this position.</p>
+      <div class="src">
+        <label for="src${row.key}">Source</label>
+        <input class="source" id="src${row.key}" placeholder="blank = your own idea">
+      </div>
+      <div class="actions">
+        <button type="button">Save</button>
+        <span class="msg"></span>
+      </div>
+    </div>`;
+
+  const idea   = node.querySelector("textarea");
+  const stop   = node.querySelector("input.stop");
+  const target = node.querySelector(`#t${row.key}`);
+  const source = node.querySelector("input.source");
+  const boxes  = [...node.querySelectorAll(".kinds input")];
+  const note   = node.querySelector(`#n${row.key}`);
+  const button = node.querySelector("button");
+  const msg    = node.querySelector(".msg");
+
+  idea.value   = row.idea   ?? "";
+  stop.value   = row.stop   ?? "";
+  const sameTarget = row.broker_target_lo !== null
+        && row.broker_target_lo === row.broker_target_hi;
+  target.value = row.target ?? (sameTarget ? row.broker_target_lo : "");
+  source.value = row.source ?? "";
+  const ticked = row.classification || [];
+  boxes.forEach(box => { box.checked = ticked.includes(box.value); });
+
+  const paintStop = () => {
+    const filled = stop.value.trim() !== "";
+    stop.classList.toggle("filled", filled);
+    note.classList.toggle("hidden", filled || row.broker_stop_lo != null);
+  };
+  stop.addEventListener("input", paintStop);
+  paintStop();
+
+  button.addEventListener("click", async () => {
+    const num = v => v.trim() === "" ? null : Number(v.replace(/,/g,""));
+    const chosen = boxes.filter(b => b.checked).map(b => b.value);
+    if (!chosen.length){
+      msg.className = "msg err";
+      msg.textContent = "Tick at least one kind of trade.";
+      return;
+    }
+    button.disabled = true;
+    msg.className = "msg";
+    msg.textContent = "Saving\u2026";
+    try{
+      const result = await rpc("jrnl_backfill_save", {
+        p_token: token,
+        p_broker: row.broker,
+        p_symbol: row.symbol,
+        p_idea: idea.value,
+        p_stop: num(stop.value),
+        p_target: num(target.value),
+        p_source: source.value,
+        p_classification: chosen,
+      });
+      msg.className = "msg ok";
+      msg.textContent = result.tranches > 1
+        ? `Saved to ${result.tranches} tranches` : "Saved";
+      node.classList.add("done");
+      setTally(result.remaining);
+    }catch(error){
+      msg.className = "msg err";
+      msg.textContent = error.message;
+    }finally{
+      button.disabled = false;
+    }
+  });
+
+  return node;
+}
+
+let total = 0;
+function setTally(remaining){
+  document.getElementById("left").textContent = remaining;
+  const written = total - remaining;
+  document.getElementById("prog").style.width =
+    total ? Math.round(written / total * 100) + "%" : "0%";
+  document.getElementById("sub").textContent =
+    `${written} of ${total} written`;
+}
+
+async function load(){
+  if(!token){
+    main.innerHTML = `<div class="state"><h2>No link token</h2>
+      <p>Open this page using the full link, including the part after <code>?t=</code>.</p></div>`;
+    return;
+  }
+  try{
+    const rows = await rpc("jrnl_backfill_list", { p_token: token });
+    rows.forEach(r => { r.key = (r.broker + r.symbol).replace(/[^A-Za-z0-9]/g, ""); });
+    total = rows.length;
+
+    if(!total){
+      main.innerHTML = `<div class="state"><h2>Nothing waiting</h2>
+        <p>Every open position from before the journal started has an entry.</p></div>`;
+      document.getElementById("sub").textContent = "All done";
+      document.getElementById("left").textContent = "0";
+      return;
+    }
+
+    let showDone = false;
+    const toggle = document.createElement("button");
+    toggle.className = "toggle";
+    const list = document.createElement("div");
+
+    const render = () => {
+      list.innerHTML = "";
+      rows.filter(r => showDone || !r.done).forEach(r => list.appendChild(slip(r)));
+      toggle.textContent = showDone ? "Hide written" : "Show written";
+    };
+    toggle.addEventListener("click", () => { showDone = !showDone; render(); });
+
+    main.innerHTML = "";
+    main.append(toggle, list);
+    render();
+    setTally(rows.filter(r => !r.done).length);
+  }catch(error){
+    main.innerHTML = `<div class="state"><h2>Can't open the queue</h2>
+      <p>${error.message}</p></div>`;
+    document.getElementById("sub").textContent = "Not loaded";
+  }
+}
+
+load();
+</script>
+</body>
+</html>
