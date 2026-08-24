@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upload Velocity exports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --ink:#12212B;          /* deep petrol, everything structural */
+  --ink-soft:#4A5F6B;
+  --paper:#DDE5E8;        /* cool desk surface */
+  --slip:#FBFCFC;         /* the slip itself */
+  --rule:#C0CDD3;
+  --signal:#B9711B;       /* missing stop */
+  --signal-tint:#F6E7CF;
+  --long:#1F6F6B;
+  --short:#A03C2E;
+  --ok:#2E6B4F;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Source Sans 3',system-ui,sans-serif;
+  font-size:16px;line-height:1.5;
+  padding:0 0 4rem;
+}
+.wrap{max-width:44rem;margin:0 auto;padding:0 1rem}
+
+/* ---- masthead ---- */
+header{
+  background:var(--ink);color:var(--slip);
+  padding:1.5rem 0 1.25rem;margin-bottom:1.5rem;
+}
+header .wrap{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;justify-content:space-between}
+h1{
+  font-family:'Archivo',sans-serif;font-weight:700;
+  font-size:1.5rem;letter-spacing:-.02em;margin:0;
+}
+.sub{font-size:.85rem;color:#9FB4BE;margin:.15rem 0 0}
+.tally{font-family:'IBM Plex Mono',monospace;font-size:.85rem;color:#9FB4BE;text-align:right}
+.tally b{display:block;font-size:1.5rem;color:var(--slip);font-weight:600}
+.bar{height:3px;background:#2C3F4B;margin-top:.5rem;width:9rem;margin-left:auto}
+.bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .35s ease}
+
+/* ---- slip ---- */
+.slip{
+  background:var(--slip);border:1px solid var(--rule);
+  margin-bottom:1rem;
+}
+.slip.done{opacity:.55}
+.slip-head{
+  display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:baseline;
+  padding:.85rem 1rem;border-bottom:1px dashed var(--rule);
+}
+.tag{
+  font-family:'IBM Plex Mono',monospace;font-size:.7rem;font-weight:600;
+  letter-spacing:.06em;padding:.15rem .4rem;border:1px solid var(--rule);
+  color:var(--ink-soft);
+}
+.name{font-family:'Archivo',sans-serif;font-weight:600;font-size:1.05rem;flex:1 1 auto}
+.epic{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--ink-soft);display:block;font-weight:400}
+.dir{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.8rem}
+.dir.LONG{color:var(--long)}
+.dir.SHORT{color:var(--short)}
+
+.facts{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(7rem,1fr));
+  border-bottom:1px dashed var(--rule);
+}
+.fact{padding:.6rem 1rem;border-right:1px dashed var(--rule)}
+.fact:last-child{border-right:0}
+.fact dt{font-size:.65rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin:0}
+.fact dd{font-family:'IBM Plex Mono',monospace;font-size:.95rem;margin:.1rem 0 0;font-variant-numeric:tabular-nums}
+.age{color:var(--ink-soft);font-size:.75rem}
+
+.fields{padding:.9rem 1rem 1rem}
+label{display:block;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:.25rem}
+textarea,input{
+  width:100%;font-family:inherit;font-size:.95rem;color:var(--ink);
+  background:#fff;border:1px solid var(--rule);border-radius:0;
+  padding:.5rem .6rem;
+}
+textarea{min-height:4.5rem;resize:vertical}
+input{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+textarea:focus,input:focus{outline:2px solid var(--ink);outline-offset:1px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem}
+
+/* the signature: an unwritten stop is hatched amber until you fill it */
+input.stop{background:
+  repeating-linear-gradient(135deg,var(--signal-tint) 0 6px,#fff 6px 12px);
+  border-color:var(--signal);
+}
+input.stop.filled{background:#fff;border-color:var(--rule)}
+.stop-note{font-size:.72rem;color:var(--signal);margin:.3rem 0 0}
+.stop-note.hidden{display:none}
+.tranche-note{margin:0;padding:.5rem 1rem;font-size:.75rem;color:var(--ink-soft);
+  background:#F1F5F6;border-bottom:1px dashed var(--rule)}
+.kinds{border:0;padding:0;margin:0 0 .9rem;display:flex;flex-wrap:wrap;gap:.4rem}
+.kinds legend{font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-soft);padding:0;margin-bottom:.35rem}
+.chk{display:inline-flex;align-items:center;gap:.35rem;cursor:pointer;
+  border:1px solid var(--rule);padding:.3rem .55rem;margin:0;
+  font-size:.82rem;letter-spacing:0;text-transform:none;color:var(--ink-soft)}
+.chk input{width:auto;margin:0;accent-color:var(--ink)}
+.chk:hover{background:#EEF3F5}
+.chk:has(input:checked){border-color:var(--ink);color:var(--ink);background:#EEF3F5;font-weight:600}
+.chk:has(input:focus-visible){outline:2px solid var(--ink);outline-offset:1px}
+.src{margin-top:.75rem}
+input.source{font-family:'Source Sans 3',sans-serif;font-size:.9rem}
+
+.actions{display:flex;align-items:center;gap:.75rem;margin-top:.9rem}
+button{
+  font-family:'Archivo',sans-serif;font-weight:600;font-size:.9rem;
+  background:var(--ink);color:var(--slip);border:0;border-radius:0;
+  padding:.55rem 1.1rem;cursor:pointer;
+}
+button:hover{background:#1D3543}
+button:disabled{background:#8FA3AC;cursor:default}
+button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+.msg{font-size:.8rem}
+.msg.ok{color:var(--ok)}
+.msg.err{color:var(--short)}
+
+.state{padding:2.5rem 1rem;text-align:center;color:var(--ink-soft)}
+.state h2{font-family:'Archivo',sans-serif;color:var(--ink);margin:0 0 .4rem}
+.toggle{
+  background:none;color:var(--ink-soft);border:1px solid var(--rule);
+  font-size:.78rem;padding:.35rem .7rem;margin-bottom:1rem;
+}
+.toggle:hover{background:#EEF3F5;color:var(--ink)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.drop{border:2px dashed var(--rule);background:var(--slip);padding:2.5rem 1.5rem;
+  text-align:center;cursor:pointer;transition:background .15s,border-color .15s}
+.drop:hover,.drop.over{border-color:var(--ink);background:#EEF3F5}
+.drop.over{border-style:solid}
+.drop h2{font-family:'Archivo',sans-serif;font-size:1.05rem;margin:0 0 .3rem;color:var(--ink)}
+.drop p{margin:0;font-size:.85rem;color:var(--ink-soft)}
+.drop input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.files{margin:1.25rem 0 0;padding:0;list-style:none}
+.files li{display:flex;align-items:baseline;gap:.6rem;background:var(--slip);
+  border:1px solid var(--rule);padding:.6rem .8rem;margin-bottom:.5rem;font-size:.88rem}
+.files .fname{flex:1 1 auto;font-family:'IBM Plex Mono',monospace;font-size:.8rem;
+  word-break:break-all}
+.files .fstate{font-size:.78rem;white-space:nowrap}
+.fstate.ok{color:var(--ok)} .fstate.err{color:var(--short)}
+.fstate.dup{color:var(--signal)} .fstate.busy{color:var(--ink-soft)}
+.kindtag{font-family:'IBM Plex Mono',monospace;font-size:.68rem;letter-spacing:.06em;
+  border:1px solid var(--rule);padding:.1rem .35rem;color:var(--ink-soft)}
+.howto{background:#F1F5F6;border-left:3px solid var(--rule);padding:.8rem 1rem;
+  margin:1.5rem 0 0;font-size:.85rem;color:var(--ink-soft)}
+.howto ol{margin:.4rem 0 0;padding-left:1.1rem}
+.howto li{margin:.15rem 0}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div>
+      <h1>Velocity exports</h1>
+      <p class="sub" id="sub">Drop both CSVs below</p>
+    </div>
+    <div class="tally">
+      <b id="count">0</b>
+      files staged
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+  <label class="drop" id="drop">
+    <input type="file" id="picker" multiple accept=".csv,text/csv">
+    <h2>Drop the two CSVs here</h2>
+    <p>Or tap to choose them &mdash; filled orders and open positions</p>
+  </label>
+
+  <ul class="files" id="files"></ul>
+
+  <div class="howto">
+    <strong>Getting the files out of Velocity</strong>
+    <ol>
+      <li>Right-click the <em>Filled orders</em> tab &rarr; Export &rarr; CSV</li>
+      <li>Right-click the <em>Open positions</em> report &rarr; Export &rarr; CSV</li>
+      <li>Drop both here. They&rsquo;re ingested at 17:15.</li>
+    </ol>
+    <p style="margin:.5rem 0 0">The open positions file is the important one &mdash;
+       it&rsquo;s what tells the journal which trades you actually hold.</p>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script>
+const SUPABASE_URL    = window.JOURNAL_CONFIG.SUPABASE_URL;
+const PUBLISHABLE_KEY = window.JOURNAL_CONFIG.PUBLISHABLE_KEY;
+
+const token  = new URLSearchParams(location.search).get("t");
+const drop   = document.getElementById("drop");
+const picker = document.getElementById("picker");
+const list   = document.getElementById("files");
+let staged = 0;
+
+async function rpc(fn, args){
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method:"POST",
+    headers:{ "apikey": PUBLISHABLE_KEY,
+              "Authorization": "Bearer " + PUBLISHABLE_KEY,
+              "Content-Type":"application/json" },
+    body: JSON.stringify(args)
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error((data && data.message) || "Upload failed");
+  return data;
+}
+
+// Velocity exports are Windows-1252 with a BOM; readAsText defaults to UTF-8,
+// which mangles the currency suffixes. Read explicitly.
+function readFile(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Could not read that file"));
+    reader.readAsText(file, "utf-8");
+  });
+}
+
+function row(file){
+  const li = document.createElement("li");
+  li.innerHTML = `<span class="kindtag">&hellip;</span>
+    <span class="fname">${file.name}</span>
+    <span class="fstate busy">reading&hellip;</span>`;
+  list.appendChild(li);
+  return { tag: li.querySelector(".kindtag"),
+           state: li.querySelector(".fstate") };
+}
+
+async function send(file){
+  const ui = row(file);
+  try{
+    if (!token) throw new Error("No link token \u2014 open this from your email");
+    if (!/\.csv$/i.test(file.name)) throw new Error("Not a CSV");
+
+    const content = await readFile(file);
+    ui.state.textContent = "uploading\u2026";
+
+    const result = await rpc("vt_upload",
+      { p_token: token, p_filename: file.name, p_content: content });
+
+    ui.tag.textContent = result.kind === "POSITIONS" ? "POSITIONS" : "FILLS";
+    if (result.duplicate){
+      ui.state.className = "fstate dup";
+      ui.state.textContent = "already uploaded";
+    } else {
+      ui.state.className = "fstate ok";
+      ui.state.textContent = `staged \u00b7 ${(result.bytes/1024).toFixed(0)} KB`;
+      staged += 1;
+      document.getElementById("count").textContent = staged;
+      document.getElementById("sub").textContent =
+        staged === 1 ? "1 file staged for 17:15" : `${staged} files staged for 17:15`;
+    }
+  }catch(error){
+    ui.tag.textContent = "\u2014";
+    ui.state.className = "fstate err";
+    ui.state.textContent = error.message;
+  }
+}
+
+function handle(files){ [...files].forEach(send); }
+
+picker.addEventListener("change", event => handle(event.target.files));
+
+["dragenter","dragover"].forEach(name =>
+  drop.addEventListener(name, event => {
+    event.preventDefault(); drop.classList.add("over");
+  }));
+["dragleave","drop"].forEach(name =>
+  drop.addEventListener(name, event => {
+    event.preventDefault(); drop.classList.remove("over");
+  }));
+drop.addEventListener("drop", event => handle(event.dataTransfer.files));
+
+if (!token){
+  document.getElementById("sub").textContent = "No link token";
+}
+</script>
+</body>
+</html>
