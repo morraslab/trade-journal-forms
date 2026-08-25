@@ -175,12 +175,10 @@ button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
   <div class="state"><p>Fetching today&rsquo;s queue&hellip;</p></div>
 </main>
 
+<script src="config.js"></script>
 <script>
-// ---------------------------------------------------------------------------
-// CONFIG -- publishable key only. Never put the secret key in this file.
-// ---------------------------------------------------------------------------
-const SUPABASE_URL    = "https://rztwvqmdpjgyentvrsqo.supabase.co";
-const PUBLISHABLE_KEY = "sb_publishable_eAPTFw8RewJBLq781fbHsA_PjTp7HU3";
+const SUPABASE_URL    = window.JOURNAL_CONFIG.SUPABASE_URL;
+const PUBLISHABLE_KEY = window.JOURNAL_CONFIG.PUBLISHABLE_KEY;
 
 const KINDS = [
   {code:"FUNDAMENTAL", label:"Fundamental"},
@@ -196,6 +194,15 @@ const main  = document.getElementById("main");
 const money = n => n === null || n === undefined ? "\u2014"
   : Number(n).toLocaleString(undefined,{maximumFractionDigits:4});
 const day = iso => new Date(iso).toISOString().slice(0,10);
+
+// a same-day round trip should read in hours, not '0d'
+function held(row){
+  if (!row.last_closed) return age(row.first_opened);
+  const mins = (new Date(row.last_closed) - new Date(row.first_opened)) / 60000;
+  if (mins < 60)   return Math.round(mins) + "m";
+  if (mins < 1440) return (mins/60).toFixed(1) + "h";
+  return age(row.first_opened);
+}
 
 function age(iso){
   const days = Math.floor((Date.now() - new Date(iso)) / 86400000);
@@ -232,9 +239,9 @@ function slipHead(row){
         <dd>${money(row.total_qty)}</dd></div>
       <div class="fact"><dt>${many ? "Avg entry" : "Entry"}</dt>
         <dd>${money(row.weighted_entry)}</dd></div>
-      <div class="fact"><dt>${row.prompt_kind === "CLOSE" ? "Held" : "Opened"}</dt>
-        <dd>${row.prompt_kind === "CLOSE"
-              ? age(row.first_opened) : day(row.first_opened)}</dd></div>
+      <div class="fact"><dt>${row.prompt_kind === "OPEN" ? "Opened" : "Held"}</dt>
+        <dd>${row.prompt_kind === "OPEN"
+              ? day(row.first_opened) : held(row)}</dd></div>
     </dl>`;
 }
 
@@ -355,7 +362,76 @@ function closeSlip(row){
   return node;
 }
 
-// --- one save path for both kinds -------------------------------------------
+// --- a trade that came and went before we saw it -----------------------------
+function reviewSlip(row){
+  const node = document.createElement("section");
+  node.className = "slip";
+  const pl = row.realised_pl;
+  const plClass = pl === null ? "" : (pl >= 0 ? "up" : "down");
+
+  node.innerHTML = slipHead(row) + `
+    <div class="fields">
+      ${pl !== null ? `<p style="margin:0 0 .9rem">
+        ${money(row.weighted_entry)} \u2192 ${money(row.weighted_exit)} \u00b7 realised
+        <span class="pl ${plClass}">${money(pl)} ${row.currency || ""}</span></p>` : ""}
+      <fieldset class="kinds">
+        <legend>Kind of trade</legend>
+        ${KINDS.map(k => `<label class="chk" for="k${row.key}${k.code}">
+            <input type="checkbox" id="k${row.key}${k.code}" value="${k.code}">
+            <span>${k.label}</span></label>`).join("")}
+      </fieldset>
+      <label for="i${row.key}">Why did you take it?</label>
+      <textarea id="i${row.key}" placeholder="The thinking at the time."></textarea>
+      <div class="pair">
+        <div><label for="s${row.key}">Stop</label>
+          <input class="stop" id="s${row.key}" inputmode="decimal" placeholder="none set"></div>
+        <div><label for="src${row.key}">Source</label>
+          <input class="source" id="src${row.key}" placeholder="blank = your own idea"></div>
+      </div>
+      <label for="r${row.key}" style="margin-top:.9rem">How did it go?</label>
+      <textarea id="r${row.key}" placeholder="Did it play out as expected? What closed it?"></textarea>
+      <div class="rating" role="group" aria-label="Rating">
+        ${[1,2,3,4,5].map(n => `<input type="radio" name="rate${row.key}"
+            id="rt${row.key}${n}" value="${n}"><label for="rt${row.key}${n}">${n}</label>`).join("")}
+      </div>
+      <p class="rating-hint">1 = badly executed, 5 = executed exactly as intended.
+         Rate the decision, not the outcome.</p>
+      <div class="actions">
+        <button type="button">Save</button><span class="msg"></span>
+      </div>
+    </div>`;
+
+  const idea    = node.querySelector(`#i${row.key}`);
+  const remarks = node.querySelector(`#r${row.key}`);
+  const stop    = node.querySelector("input.stop");
+  const source  = node.querySelector("input.source");
+  const boxes   = [...node.querySelectorAll(".kinds input")];
+  const radios  = [...node.querySelectorAll(".rating input")];
+
+  idea.value    = row.idea ?? "";
+  remarks.value = row.closing_remarks ?? "";
+  stop.value    = row.stop ?? "";
+  source.value  = row.source ?? "";
+  (row.classification || []).forEach(code => {
+    const box = boxes.find(b => b.value === code); if (box) box.checked = true;
+  });
+  const paint = () => stop.classList.toggle("filled", stop.value.trim() !== "");
+  stop.addEventListener("input", paint); paint();
+
+  wire(node, row, () => {
+    const chosen = boxes.filter(b => b.checked).map(b => b.value);
+    if (!chosen.length) throw new Error("Tick at least one kind of trade.");
+    const picked = radios.find(r => r.checked);
+    const num = v => v.trim() === "" ? null : Number(v.replace(/,/g,""));
+    return { p_kind:"REVIEW", p_idea:idea.value, p_stop:num(stop.value),
+             p_source:source.value, p_classification:chosen,
+             p_remarks:remarks.value,
+             p_rating: picked ? Number(picked.value) : null };
+  });
+  return node;
+}
+
+// --- one save path for all kinds --------------------------------------------
 function wire(node, row, collect){
   const button = node.querySelector("button");
   const msg    = node.querySelector(".msg");
@@ -412,8 +488,17 @@ async function load(){
     }
 
     main.innerHTML = "";
-    const opens  = rows.filter(r => r.prompt_kind === "OPEN");
-    const closes = rows.filter(r => r.prompt_kind === "CLOSE");
+    const reviews = rows.filter(r => r.prompt_kind === "REVIEW");
+    const opens   = rows.filter(r => r.prompt_kind === "OPEN");
+    const closes  = rows.filter(r => r.prompt_kind === "CLOSE");
+
+    if (reviews.length){
+      const head = document.createElement("p");
+      head.className = "section-head";
+      head.textContent = "Opened and closed \u2014 write it up while it's fresh";
+      main.appendChild(head);
+      reviews.forEach(r => main.appendChild(reviewSlip(r)));
+    }
 
     if (opens.length){
       const head = document.createElement("p");
