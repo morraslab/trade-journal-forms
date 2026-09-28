@@ -158,6 +158,23 @@ button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
 .howto ol{margin:.4rem 0 0;padding-left:1.1rem}
 .howto li{margin:.15rem 0}
 
+/* ---- last successful ingest, per broker ---- */
+.status{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));
+  background:var(--slip);border:1px solid var(--rule);margin-bottom:1.25rem}
+.status[hidden]{display:none}
+.feed{padding:.75rem 1rem;border-right:1px dashed var(--rule);border-left:3px solid var(--ok)}
+.feed:last-child{border-right:0}
+.feed.stale{border-left-color:var(--signal)}
+.feed.err{border-left-color:var(--short)}
+.feed.unknown{border-left-color:var(--rule)}
+.feed dt{font-size:.65rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin:0}
+.feed dd{margin:.15rem 0 0}
+.feed .when{font-family:'IBM Plex Mono',monospace;font-size:.95rem;font-variant-numeric:tabular-nums}
+.feed .ago{color:var(--ink-soft);font-size:.75rem;margin-left:.35rem}
+.feed .note{font-size:.75rem;color:var(--ink-soft);margin:.3rem 0 0}
+.feed.stale .note.flag{color:var(--signal)}
+.feed.err .note.flag{color:var(--short)}
+
 </style>
 </head>
 <body>
@@ -176,6 +193,21 @@ button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
 </header>
 
 <main class="wrap" id="main">
+  <dl class="status" id="status" aria-live="polite" hidden>
+    <div class="feed unknown" data-broker="VELOCITY">
+      <dt>Velocity &middot; last successful ingest</dt>
+      <dd><span class="when">checking&hellip;</span><span class="ago"></span></dd>
+      <dd class="note flag"></dd>
+      <dd class="note extra"></dd>
+    </div>
+    <div class="feed unknown" data-broker="IG">
+      <dt>IG &middot; last successful sync</dt>
+      <dd><span class="when">checking&hellip;</span><span class="ago"></span></dd>
+      <dd class="note flag"></dd>
+      <dd class="note extra"></dd>
+    </div>
+  </dl>
+
   <label class="drop" id="drop">
     <input type="file" id="picker" multiple accept=".csv,text/csv">
     <h2>Drop the two CSVs here</h2>
@@ -272,7 +304,76 @@ async function send(file){
   }
 }
 
-function handle(files){ [...files].forEach(send); }
+// ---- last successful ingest, per broker --------------------------------
+const WHEN = new Intl.DateTimeFormat(undefined, { weekday:"short", day:"numeric",
+  month:"short", hour:"2-digit", minute:"2-digit", hourCycle:"h23" });
+
+function ago(date){
+  const day = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const days = Math.round((day(new Date()) - day(date)) / 86400000);
+  return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+}
+
+// The 17:15 SAST run is 15:15 UTC on weekdays. GitHub can start it late,
+// so it only counts as "due" 45 minutes after the scheduled time.
+function lastScheduledRun(){
+  const run = new Date();
+  run.setUTCHours(15, 15, 0, 0);
+  if (Date.now() < run.getTime() + 45 * 60000) run.setUTCDate(run.getUTCDate() - 1);
+  while (run.getUTCDay() === 0 || run.getUTCDay() === 6) run.setUTCDate(run.getUTCDate() - 1);
+  return run;
+}
+
+function paint(feed, state, extra){
+  const el = document.querySelector(`.feed[data-broker="${feed}"]`);
+  const success = state && state.last_success_at ? new Date(state.last_success_at) : null;
+  const lastRun = state && state.last_run_at ? new Date(state.last_run_at) : null;
+  const failed  = state && state.last_status === "ERROR" && lastRun
+                  && (!success || lastRun > success);
+
+  el.querySelector(".when").textContent = success ? WHEN.format(success) : "never";
+  el.querySelector(".ago").textContent  = success ? ago(success) : "";
+
+  let flag = "", cls = "ok";
+  if (failed){
+    cls  = "err";
+    flag = `Last attempt failed ${WHEN.format(lastRun)}` +
+           (state.last_error ? ` \u2014 ${state.last_error}` : "");
+  } else if (!success || success < lastScheduledRun()){
+    cls  = "stale";
+    flag = "Not updated at the last 17:15 run";
+  }
+  el.className = `feed ${cls}`;
+  el.querySelector(".flag").textContent  = flag;
+  el.querySelector(".extra").textContent = extra || "";
+}
+
+async function loadStatus(){
+  const box = document.getElementById("status");
+  box.hidden = false;
+  try{
+    const status = await rpc("vt_sync_status", { p_token: token });
+    const by = Object.fromEntries((status.brokers || []).map(row => [row.broker, row]));
+
+    let received = "";
+    if (status.pending > 0){
+      received = status.pending === 1 ? "1 file waiting for 17:15"
+                                      : `${status.pending} files waiting for 17:15`;
+    } else if (status.last_file_at){
+      received = `Last file received ${WHEN.format(new Date(status.last_file_at))}`;
+    }
+    paint("VELOCITY", by.VELOCITY, received);
+    paint("IG", by.IG, "");
+  }catch(error){
+    document.querySelectorAll(".feed").forEach(el => {
+      el.className = "feed unknown";
+      el.querySelector(".when").textContent = "unavailable";
+      el.querySelector(".extra").textContent = error.message;
+    });
+  }
+}
+
+function handle(files){ Promise.allSettled([...files].map(send)).then(loadStatus); }
 
 picker.addEventListener("change", event => handle(event.target.files));
 
@@ -288,6 +389,8 @@ drop.addEventListener("drop", event => handle(event.dataTransfer.files));
 
 if (!token){
   document.getElementById("sub").textContent = "No link token";
+} else {
+  loadStatus();
 }
 </script>
 </body>
