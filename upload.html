@@ -314,12 +314,12 @@ function ago(date){
   return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
 }
 
-// The 17:15 SAST run is 15:15 UTC on weekdays. GitHub can start it late,
-// so it only counts as "due" 45 minutes after the scheduled time.
+// The 17:15 SAST run is 15:15 UTC on weekdays. GitHub's scheduler has been
+// starting it 3-4 hours late, so it only counts as "due" 6 hours after.
 function lastScheduledRun(){
   const run = new Date();
   run.setUTCHours(15, 15, 0, 0);
-  if (Date.now() < run.getTime() + 45 * 60000) run.setUTCDate(run.getUTCDate() - 1);
+  if (Date.now() < run.getTime() + 6 * 3600000) run.setUTCDate(run.getUTCDate() - 1);
   while (run.getUTCDay() === 0 || run.getUTCDay() === 6) run.setUTCDate(run.getUTCDate() - 1);
   return run;
 }
@@ -331,7 +331,7 @@ function paint(feed, state, extra){
   const failed  = state && state.last_status === "ERROR" && lastRun
                   && (!success || lastRun > success);
 
-  el.querySelector(".when").textContent = success ? WHEN.format(success) : "never";
+  el.querySelector(".when").textContent = success ? WHEN.format(success) : "no record yet";
   el.querySelector(".ago").textContent  = success ? ago(success) : "";
 
   let flag = "", cls = "ok";
